@@ -24,4 +24,4 @@ data_nonsense_characters <- book_of_nonsense %>%
   mutate(char = strsplit(as.character(new_line), "")) %>% 
   unnest(char) %>%
   select(-new_line)
-saveRDS(data_nonsense_words,"round3 - Markov/data_nonsense_characters.Rds")
+saveRDS(data_nonsense_characters,"round3 - Markov/data_nonsense_characters.Rds")

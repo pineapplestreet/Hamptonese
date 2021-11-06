@@ -3,9 +3,12 @@ library(dplyr)
 library(ggplot2)
 library(scales)
 
-# grab our data
-hamptonese_clean <- readRDS("round2 - Nov 2021/hamptonese_clean.Rds")
-psalms <- read.csv("round2 - Nov 2021/python_output_psalms.csv")
+# we finally have nice clean data to compare everything against!
+data_hamptonese_clean <- readRDS("round4 - Zipf/data_hamptonese_clean.Rds")
+data_psalms_characters <- readRDS("round4 - Zipf/data_psalms_characters.Rds")
+data_nonsense_characters <- readRDS("round4 - Zipf/data_nonsense_characters.Rds")
+data_psalms_words <- readRDS("round4 - Zipf/data_psalms_words.Rds")
+data_nonsense_words <- readRDS("round4 - Zipf/data_nonsense_words.Rds")
 
 # min max normalize
 minmax_norm <- function(vector) {
@@ -31,37 +34,78 @@ super_basic_zipf_analysis <- function(df) {
   return(output)
 }
 
-# run on Hamptonese v. Psalms
-freq_psalms <- super_basic_zipf_analysis(psalms)
+# compare token frequencies in Hamptonese v. Psalms v. Nonsense
+freq_hamptonese <- super_basic_zipf_analysis(data_hamptonese_clean)
+freq_psalms_characters <- super_basic_zipf_analysis(data_psalms_characters)
+freq_psalms_words <- super_basic_zipf_analysis(data_psalms_words)
+freq_nonsense_characters <- super_basic_zipf_analysis(data_nonsense_characters)
+freq_nonsense_words <- super_basic_zipf_analysis(data_nonsense_words)
+
+
 freq_hamptonese <- super_basic_zipf_analysis(hamptonese_clean)
 
 # holy shit - Hamptonese is following Zipf's law
 
 # measuring fit - just compare total absolute error
-sum(freq_psalms$abs_error)
+# this is garbage because we have way more samples (errors) in the word analysis
 sum(freq_hamptonese$abs_error)
+sum(freq_psalms_characters$abs_error)
+sum(freq_psalms_words$abs_error)
+sum(freq_nonsense_characters$abs_error)
+sum(freq_nonsense_words$abs_error)
 
-# plot the first 25 items
-ggdata <- data.frame(Item="Zip's Law",
-                     Rank=seq(1,25,1),
-                     Value=(freq_psalms %>% filter(rank <= 25))$zipf)
-ggdata <- rbind(data.frame(Item="Psalms (Letters)",
-                           Rank=seq(1,25,1),
-                           Value=(freq_psalms %>% filter(rank <= 25))$norm),
-                ggdata)
-ggdata <- rbind(data.frame(Item="Hamptonese",
-                           Rank=seq(1,25,1),
-                           Value=(freq_hamptonese %>% filter(rank <= 25))$norm),
-                ggdata)
+# combine everything into a nice long dataframe to play nice with ggplot
+freq_results <- data.frame(Item="Zip's Law",
+                           Rank=freq_psalms_words$rank,
+                           Value=freq_psalms_words$zipf,
+                           abs_error=0)
+freq_results <- rbind(freq_results,data.frame(Item="Hamptonese",
+                                              Rank=freq_hamptonese$rank,
+                                              Value=freq_hamptonese$norm,
+                                              abs_error=freq_hamptonese$abs_error))
+freq_results <- rbind(freq_results,data.frame(Item="Psalms (Characters)",
+                                              Rank=freq_psalms_characters$rank,
+                                              Value=freq_psalms_characters$norm,
+                                              abs_error=freq_psalms_characters$abs_error))
+freq_results <- rbind(freq_results,data.frame(Item="Psalms (Words)",
+                                              Rank=freq_psalms_words$rank,
+                                              Value=freq_psalms_words$norm,
+                                              abs_error=freq_psalms_words$abs_error))
+freq_results <- rbind(freq_results,data.frame(Item="Nonsense (Characters)",
+                                              Rank=freq_nonsense_characters$rank,
+                                              Value=freq_nonsense_characters$norm,
+                                              abs_error=freq_nonsense_characters$abs_error))
+freq_results <- rbind(freq_results,data.frame(Item="Nonsense (Words)",
+                                              Rank=freq_nonsense_words$rank,
+                                              Value=freq_nonsense_words$norm,
+                                              abs_error=freq_nonsense_words$abs_error))
 
 
-ggplot(ggdata,aes(x=Rank,y=Value,color=Item)) +
+
+# look at the first 100 words only
+zipf1 <- freq_results %>% 
+  filter(Rank <= 100) %>%
+  filter(!(Item %in% c('Nonsense (Characters)',
+                       'Psalms (Characters)')))
+
+# look at the first 25 characters only
+zipf1 <- freq_results %>% 
+  filter(Rank <= 25) %>%
+  filter(!(Item %in% c('Nonsense (Words)',
+                       'Psalms (Words)')))
+
+quantify_it <- zipf1 %>%
+  group_by(Item) %>%
+  summarise(total_absolute_error=sum(abs_error))
+
+
+ggplot(zipf1,aes(x=Rank,y=Value,color=Item)) +
   geom_point() + 
   geom_line() +
   labs(x="Rank",y="Min/Max Normalized Frequency") +
   ggtitle("Linear Scale: 25 Most Common Tokens")
 
-ggplot(ggdata,aes(x=Rank,y=Value,color=Item)) +
+ggplot(zipf1,aes(x=Rank,y=Value,color=Item)) +
   geom_point() + 
   geom_line() +
   scale_y_continuous(trans='log') +
