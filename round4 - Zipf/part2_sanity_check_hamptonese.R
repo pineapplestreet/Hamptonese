@@ -155,6 +155,17 @@ data_hamptonese_methodB <- data_hamptonese_method %>%
 saveRDS(data_hamptonese_methodB,"round4 - Zipf/data_hamptonese_methodB.Rds")
 
 
+# method B is conservative
+# ignore items we are unsure about
+# ignore items not in the dictionary
+data_hamptonese_methodC <- data_hamptonese_method %>%
+  mutate(char=unsure_clean,
+         #char=ifelse(in_stamps_42=='N','*',char), 
+         revelation_no=revelation) %>%  
+  select(page_no, hampton_page_no, line_no, char_no, revelation_no, char)
+#saveRDS(data_hamptonese_methodB,"round4 - Zipf/data_hamptonese_methodB.Rds")
+
+
 
 #####################################################################
 # compare these relative frequencies again with defined A and B- how big of a difference?
@@ -186,6 +197,18 @@ methodB <- data_hamptonese_methodB %>%
   arrange(desc(rel_freq)) %>% 
   mutate(rank=row_number(),
          method="MethodB")
+
+
+# remove all unknown (*)
+totalC <- nrow(data_hamptonese_methodC %>% filter(char!="*"))
+methodC <- data_hamptonese_methodC %>%
+  filter(char!="*") %>%
+  group_by(char) %>%
+  summarise(count=n()) %>%
+  mutate(rel_freq=count/totalC) %>%
+  arrange(desc(rel_freq)) %>% 
+  mutate(rank=row_number(),
+         method="MethodC*")
 
 # combine into a long table
 long <- stamp %>%
@@ -309,6 +332,10 @@ method_missing <- fit %>%
 
 # Method A missing 237, but includes 256 tokens missing from Stamp (493) 
 # Method B missing 499 
+
+# can I match with Method C?
+
+# no, I think Stamp's table contains errors
 
 
 
