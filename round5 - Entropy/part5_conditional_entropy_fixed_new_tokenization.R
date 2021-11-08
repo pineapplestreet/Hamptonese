@@ -4,12 +4,60 @@ library(dplyr)
 library(tidytext)
 library(stringr)
 
+# Before I tokenized on lines, and I don't like that when I think about it
+# Here we split everything based on the "Book" or "Revelation"
+
+length(unique(readRDS("round4 - Zipf/data_psalms_words.Rds")$psalm_no))
+length(unique(readRDS("round4 - Zipf/data_hamptonese_methodA.Rds")$revelation_no))
+length(unique(readRDS("round4 - Zipf/data_hamptonese_methodB.Rds")$revelation_no))
+
+
+# we have 150 books of Psalms, and 102 Revelations by Hampton
+# that feels more apples-to-apples than comparing by line 
+
+# how big is everything per-revelation?
+hampton <- readRDS("round4 - Zipf/data_hamptonese_methodA.Rds") %>%
+  group_by(revelation_no) %>%
+  summarise(characters=n())
+mean(hampton$characters)
+# min = 120, max = 358, avg = 289.6471
+
+# how big is everything per-psalms?
+psalms <- readRDS("round4 - Zipf/data_psalms_characters.Rds") %>%
+  group_by(psalm_no) %>%
+  summarise(characters=n())
+mean(psalms$characters)
+# min = 163, max = 12,264, avg = 1410.753
+
+# how big is everything per-psalms?
+psalms <- readRDS("round4 - Zipf/data_psalms_words.Rds") %>%
+  group_by(psalm_no) %>%
+  summarise(characters=n())
+mean(psalms$characters)
+# min = 33, max = 2,423, avg = 284.56
+
+
+# how big is everything per-nonsense?
+nonsense <- readRDS("round4 - Zipf/data_nonsense_characters.Rds") %>%
+  group_by(nonsense_no) %>%
+  summarise(characters=n())
+mean(nonsense$characters)
+
+
+# how big is everything per-psalms?
+nonsense2 <- readRDS("round4 - Zipf/data_nonsense_words.Rds") %>%
+  group_by(nonsense_no) %>%
+  summarise(characters=n())
+mean(nonsense2$characters)
+
+
+
 ##################################################################
 # function to collapse all tokens into a single line
 # (so I can use tidytext to simplify the n-grams)
 collapse_into_line <- function(data) {
   data <- data %>%
-    group_by(line_id) %>%
+    group_by(group_var) %>%
     summarise(line=paste(char, collapse= " ")) %>%
     # hacky cleanup to play nice with tidytext tokenizer
     mutate(line=str_replace_all(line,"_","S"),
@@ -20,12 +68,12 @@ collapse_into_line <- function(data) {
 
 ##################################################################
 # load up all our data
-text_psalms_words <- collapse_into_line(readRDS("round4 - Zipf/data_psalms_words.Rds"))
-text_psalms_chars <- collapse_into_line(readRDS("round4 - Zipf/data_psalms_characters.Rds"))
-text_nonsense_words <- collapse_into_line(readRDS("round4 - Zipf/data_nonsense_words.Rds"))
-text_nonsense_chars <- collapse_into_line(readRDS("round4 - Zipf/data_nonsense_characters.Rds"))
-text_hamptoneseA <- collapse_into_line(readRDS("round4 - Zipf/data_hamptonese_methodA.Rds") %>% mutate(line_id=paste0(revelation_no,'_',line_no)))
-text_hamptoneseB <- collapse_into_line(readRDS("round4 - Zipf/data_hamptonese_methodB.Rds") %>% mutate(line_id=paste0(revelation_no,'_',line_no)))
+text_psalms_words <- collapse_into_line(readRDS("round4 - Zipf/data_psalms_words.Rds") %>% mutate(group_var=psalm_no))
+text_psalms_chars <- collapse_into_line(readRDS("round4 - Zipf/data_psalms_characters.Rds") %>% mutate(group_var=psalm_no))
+text_nonsense_words <- collapse_into_line(readRDS("round4 - Zipf/data_nonsense_words.Rds") %>% mutate(group_var=nonsense_no))
+text_nonsense_chars <- collapse_into_line(readRDS("round4 - Zipf/data_nonsense_characters.Rds") %>% mutate(group_var=nonsense_no))
+text_hamptoneseA <- collapse_into_line(readRDS("round4 - Zipf/data_hamptonese_methodA.Rds") %>% mutate(group_var=revelation_no))
+text_hamptoneseB <- collapse_into_line(readRDS("round4 - Zipf/data_hamptonese_methodB.Rds") %>% mutate(group_var=revelation_no))
 
 ##################################################################
 # calculate Shanon's entropy (n=1) or conditional entropy (n>1)
@@ -108,10 +156,10 @@ calculate_entropy <- function(df, item, n) {
   }
 }
 
-# set er' running and go get a glass of water
+# set er' running and go do something else , you've got a minute
 # I hope by 50 iterations all entropy will reach 0 for all methods
 results <- data.frame()
-for(i in 1:50) {
+for(i in 1:100) {
   results <- rbind(results, calculate_entropy(text_hamptoneseA,"Hamptonese (Method A)", i))
   results <- rbind(results, calculate_entropy(text_hamptoneseB,"Hamptonese (Method B)", i))  
   results <- rbind(results, calculate_entropy(text_psalms_chars,"Book of Psalms (characters)", i))  
@@ -121,4 +169,5 @@ for(i in 1:50) {
 }
 
 # sve our results
-saveRDS(results, "round5 - Entropy/results.Rds")
+results2 <- results
+saveRDS(results2, "round5 - Entropy/results2.Rds")
